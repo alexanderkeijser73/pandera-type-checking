@@ -1,4 +1,5 @@
 import dataclasses
+from typing import cast
 
 import pandas as pd
 import pandera as pa
@@ -10,25 +11,29 @@ class Schema(pa.DataFrameModel):
     name: Series[str]
     age: Series[int]
 
-class Schema2(pa.DataFrameModel):
+class Schema2(Schema):
     banana: Series[int]
 
 class Schema3(Schema2):
     apple: Series[int]
 
 
-bla: DataFrame[Schema] = DataFrame[Schema](pd.DataFrame.from_dict({
+bla = DataFrame[Schema2](pd.DataFrame.from_dict({
     "name": ["Alice", "Bob", "Charlie"],
     "age": [25, 30, 35],
+    "banana": [1, 2, 3],
 }))
 
 # TODO: can't refactor-> change name of variable with Pycharm :(
 print(bla.age)
-# TODO:
 print(bla.banana)
-print(bla.potato)
+print(bla['apples'])
 
-
+class Schema4(Schema):
+   apples: str
+def func2(df: DataFrame[Schema]) -> DataFrame[Schema4]:
+    df.apples = df.name + df.age
+    return cast(DataFrame[Schema4], df)
 
 def func(df: DataFrame[Schema2]) -> DataFrame[Schema3]:
     return df.pipe(DataFrame[Schema3])

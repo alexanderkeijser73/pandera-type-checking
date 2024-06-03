@@ -99,7 +99,10 @@ class PanderaPlugin(Plugin):
                 if hasattr(colname, 'value'):
                     colname = colname.value
                     schema = ctx.type.args[0]
-                    schema_cols = schema.type.defn.info.names
+                    # schema_cols = schema.type.defn.info.names
+                    # to support schema inheritance/subclassing
+                    schema_cols = {k: v for s in schema.type.mro for k, v in
+                                   s.defn.info.names.items()}
                     if not colname in schema_cols:
                         full_message = f"Column '{colname}' not defined for Pandera DataFrameModel '{schema}'"
                         ctx.api.fail(full_message, ctx.context, code=ATTR_DEFINED)
@@ -110,7 +113,9 @@ class PanderaPlugin(Plugin):
             if ctx.type.type.fullname == PANDERA_PANDAS_DATAFRAME_FULLNAME:
                 colname = ctx.context.name
                 schema = ctx[0].args[0]
-                schema_cols = schema.type.defn.info.names
+                # schema_cols = schema.type.defn.info.names
+                # to support schema inheritance/subclassing
+                schema_cols = {k: v for s in schema.type.mro for k, v in s.defn.info.names.items()}
                 if not colname in schema_cols:
                     full_message = f"Column '{colname}' not defined for Pandera DataFrameModel '{schema}'"
                     ctx.api.fail(full_message, ctx.context, code=ATTR_DEFINED)
