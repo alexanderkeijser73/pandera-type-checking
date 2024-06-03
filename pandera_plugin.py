@@ -86,40 +86,40 @@ class PanderaPlugin(Plugin):
 
     def get_attribute_hook(self, fullname: str) -> Callable[[AttributeContext], Type] | None:
         if PANDAS_DATAFRAME_FULLNAME in fullname:
-            return self.pandera_attribute_callback
+            return pandera_attribute_callback
 
     def get_method_hook(self, fullname: str) -> Callable[[MethodContext], Type] | None:
         if PANDERA_PANDAS_DATAFRAME_FULLNAME in fullname:
-            return self.pandera_method_callback
+            return pandera_method_callback
 
-    def pandera_method_callback(self, ctx: MethodContext) -> Type:
-        if hasattr(ctx.type, "type"):
-            if ctx.type.type.fullname == PANDERA_PANDAS_DATAFRAME_FULLNAME:
-                colname = ctx.args[0][0]
-                if hasattr(colname, 'value'):
-                    colname = colname.value
-                    schema = ctx.type.args[0]
-                    # schema_cols = schema.type.defn.info.names
-                    # to support schema inheritance/subclassing
-                    schema_cols = {k: v for s in schema.type.mro for k, v in
-                                   s.defn.info.names.items()}
-                    if not colname in schema_cols:
-                        full_message = f"Column '{colname}' not defined for Pandera DataFrameModel '{schema}'"
-                        ctx.api.fail(full_message, ctx.context, code=ATTR_DEFINED)
-        return ctx.default_return_type
-
-    def pandera_attribute_callback(self, ctx: AttributeContext) -> Type:
-        if hasattr(ctx.type, "type"):
-            if ctx.type.type.fullname == PANDERA_PANDAS_DATAFRAME_FULLNAME:
-                colname = ctx.context.name
-                schema = ctx[0].args[0]
-                # schema_cols = schema.type.defn.info.names
-                # to support schema inheritance/subclassing
-                schema_cols = {k: v for s in schema.type.mro for k, v in s.defn.info.names.items()}
-                if not colname in schema_cols:
-                    full_message = f"Column '{colname}' not defined for Pandera DataFrameModel '{schema}'"
-                    ctx.api.fail(full_message, ctx.context, code=ATTR_DEFINED)
-        return ctx.default_attr_type
+    # def pandera_method_callback(self, ctx: MethodContext) -> Type:
+    #     if hasattr(ctx.type, "type"):
+    #         if ctx.type.type.fullname == PANDERA_PANDAS_DATAFRAME_FULLNAME:
+    #             colname = ctx.args[0][0]
+    #             if hasattr(colname, 'value'):
+    #                 colname = colname.value
+    #                 schema = ctx.type.args[0]
+    #                 # schema_cols = schema.type.defn.info.names
+    #                 # to support schema inheritance/subclassing
+    #                 schema_cols = {k: v for s in schema.type.mro for k, v in
+    #                                s.defn.info.names.items()}
+    #                 if not colname in schema_cols:
+    #                     full_message = f"Column '{colname}' not defined for Pandera DataFrameModel '{schema}'"
+    #                     ctx.api.fail(full_message, ctx.context, code=ATTR_DEFINED)
+    #     return ctx.default_return_type
+    #
+    # def pandera_attribute_callback(self, ctx: AttributeContext) -> Type:
+    #     if hasattr(ctx.type, "type"):
+    #         if ctx.type.type.fullname == PANDERA_PANDAS_DATAFRAME_FULLNAME:
+    #             colname = ctx.context.name
+    #             schema = ctx[0].args[0]
+    #             # schema_cols = schema.type.defn.info.names
+    #             # to support schema inheritance/subclassing
+    #             schema_cols = {k: v for s in schema.type.mro for k, v in s.defn.info.names.items()}
+    #             if not colname in schema_cols:
+    #                 full_message = f"Column '{colname}' not defined for Pandera DataFrameModel '{schema}'"
+    #                 ctx.api.fail(full_message, ctx.context, code=ATTR_DEFINED)
+    #     return ctx.default_attr_type
 
     def _pandera_model_class_maker_callback(
         self, ctx: ClassDefContext
@@ -150,6 +150,30 @@ class PanderaPlugin(Plugin):
             *ctx.default_signature.arg_types[1:],
         ]
         return ctx.default_signature.copy_modified(arg_types=arg_types)
+
+
+def _check_column_defined(ctx: AttributeContext | MethodContext, colname: str):
+    schema = ctx.type.args[0]
+    schema_cols = {k for s in schema.type.mro for k in s.defn.info.names.keys()}
+    if colname not in schema_cols:
+        full_message = f"Column '{colname}' not defined for Pandera DataFrameModel '{schema}'"
+        ctx.api.fail(full_message, ctx.context, code=ATTR_DEFINED)
+
+
+def pandera_method_callback(ctx: MethodContext) -> Type:
+    if hasattr(ctx.type, "type") and ctx.type.type.fullname == PANDERA_PANDAS_DATAFRAME_FULLNAME:
+        colname = ctx.args[0][0]
+        if hasattr(colname, 'value'):
+            colname = colname.value
+            _check_column_defined(ctx, colname)
+    return ctx.default_return_type
+
+
+def pandera_attribute_callback(ctx: AttributeContext) -> Type:
+    if hasattr(ctx.type, "type") and ctx.type.type.fullname == PANDERA_PANDAS_DATAFRAME_FULLNAME:
+        colname = ctx.context.name
+        _check_column_defined(ctx, colname)
+    return ctx.default_attr_type
 
 
 class DataFrameModelTransformer:

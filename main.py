@@ -28,6 +28,7 @@ bla = DataFrame[Schema2](pd.DataFrame.from_dict({
 print(bla.age)
 print(bla.banana)
 print(bla['apples'])
+print(bla.apples)
 
 class Schema4(Schema):
    apples: str
